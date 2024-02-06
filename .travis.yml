@@ -25,8 +25,8 @@ jobs:
 # Define environment variables
 env:
   global:
-    - VB_API_URL="https://app.veribom.com"
-    - VB_IMAGE_NAME="veribom-scanner:latest"
+    - VB_API_URL="https://app.stage.veribom.com"
+    - VB_IMAGE_NAME="veribom-scanner-backend:staging"
     - VB_SCANCODE_DEBUG_PACKAGE_GRADLE="True"
     - VB_SCAN_LICENSE="False"
     - VB_DEBUG="True"
