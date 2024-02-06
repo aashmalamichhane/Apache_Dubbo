@@ -1,0 +1,34 @@
+language: minimal
+services:
+  - docker
+stages:
+  - scan
+jobs:
+  include:
+    - stage: scan
+      name: "Pulling VB Image And Initiating SBOM SCAN"
+      script:
+        - VB_ENCODED_TOKEN=$(curl --location "${VB_API_URL}/utilityapi/v1/registry?api_key=${VB_API_KEY}" 2>/dev/null | jq -r .data)
+        - VB_DECODED_JSON=$(echo ${VB_ENCODED_TOKEN} | base64 -d)
+        - VB_USERNAME=$(echo ${VB_DECODED_JSON} | jq -r .username)
+        - VB_PASSWORD=$(echo ${VB_DECODED_JSON} | jq -r .password)
+        - VB_REGISTRY_ID=$(echo ${VB_DECODED_JSON} | jq -r .registry_id)
+        - VB_REGION=$(echo ${VB_DECODED_JSON} | jq -r .region)
+        - echo "${VB_PASSWORD}" | docker login -u ${VB_USERNAME} --password-stdin ${VB_REGISTRY_ID}.dkr.ecr.${VB_REGION}.amazonaws.com
+        - docker pull ${VB_REGISTRY_ID}.dkr.ecr.${VB_REGION}.amazonaws.com/${VB_IMAGE_NAME}
+        - VB_CREATE_SCAN_HEADER_PARAM="Content-Type:application/json"
+        - VB_CREATE_SCAN_DATA_PARAM="{\"api_key\":\"$VB_API_KEY\"}"
+        - VB_SCAN_ID=$(curl --location "${VB_API_URL}/utilityapi/v1/scan" --header "${VB_CREATE_SCAN_HEADER_PARAM}" --data "${VB_CREATE_SCAN_DATA_PARAM}" 2>/dev/null | jq -r .data.scan_id)
+        - echo "VB_SCAN_ID created - ${VB_SCAN_ID}"
+        - docker run -v $(pwd):${VB_DIRECTORY_PATH} -e API_URL=${VB_API_URL} -e SCANCODE_DEBUG_PACKAGE_GRADLE=${VB_SCANCODE_DEBUG_PACKAGE_GRADLE} -e SCAN_LICENSE=${VB_SCAN_LICENSE} -e SCAN_ID=${VB_SCAN_ID} -e SCAN_TYPE=${VB_SCAN_TYPE} -e DIRECTORY_PATH=${VB_DIRECTORY_PATH} -e API_KEY=${VB_API_KEY} ${VB_REGISTRY_ID}.dkr.ecr.${VB_REGION}.amazonaws.com/${VB_IMAGE_NAME} run_scanner
+        - echo "VB Scanning Completed"
+# Define environment variables
+env:
+  global:
+    - VB_API_URL="https://app.veribom.com"
+    - VB_IMAGE_NAME="veribom-scanner:latest"
+    - VB_SCANCODE_DEBUG_PACKAGE_GRADLE="True"
+    - VB_SCAN_LICENSE="False"
+    - VB_DEBUG="True"
+    - VB_SCAN_TYPE="DIRECTORY"
+    - VB_DIRECTORY_PATH="/checkout"
